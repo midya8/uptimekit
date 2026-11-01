@@ -136,6 +136,35 @@ class TestReport(CliCase):
             main(["report", "--history", str(self.history), "--window", "fortnight"])
 
 
+class TestStatusPage(CliCase):
+    def test_writes_page_from_config(self):
+        import time
+        self._seed([True, False], base=time.time())
+        out = self.dir / "status.html"
+        code, msg = self.run_cli(["status-page", "--history", str(self.history),
+                                  "--config", str(self.config), "--out", str(out)])
+        self.assertEqual(code, 0)
+        page = out.read_text()
+        self.assertIn("Service status", page)
+        self.assertIn("api", page)
+        self.assertIn("db", page)  # config targets appear even without history
+
+    def test_names_from_history_without_config(self):
+        import time
+        self._seed([True], base=time.time())
+        out = self.dir / "s.html"
+        code, msg = self.run_cli(["status-page", "--history", str(self.history),
+                                  "--out", str(out)])
+        self.assertIn("1 target", msg)
+        self.assertIn("api", out.read_text())
+
+    def test_creates_output_dirs(self):
+        out = self.dir / "deep" / "dir" / "s.html"
+        code, _ = self.run_cli(["status-page", "--history", str(self.history),
+                                "--out", str(out)])
+        self.assertTrue(out.exists())
+
+
 class TestCompact(CliCase):
     def test_compact_drops_old(self):
         self._seed([True, True], base=0.0)
