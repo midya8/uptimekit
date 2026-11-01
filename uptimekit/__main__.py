@@ -9,6 +9,7 @@ from pathlib import Path
 from .availability import availability, current_state, fleet, incidents
 from .history import append, compact, read
 from .probes import load_targets, run_checks
+from .statuspage import render
 
 WINDOWS = {"1h": 3600.0, "24h": 86400.0, "7d": 7 * 86400.0, "30d": 30 * 86400.0}
 DEFAULT_HISTORY = "uptime-history.jsonl"
@@ -92,6 +93,23 @@ def _cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_status_page(args: argparse.Namespace) -> int:
+    now = time.time()
+    window = _window_seconds(args.window)
+    entries = read(Path(args.history), since=now - window)
+    if args.config:
+        names = [t.name for t in _load_config(args.config)]
+    else:
+        names = sorted({e.name for e in entries})
+    page = render(entries, names, args.window, now=now)
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(page, encoding="utf-8")
+    print(f"wrote {out} ({len(names)} target{'s' if len(names) != 1 else ''}, "
+          f"window {args.window})")
+    return 0
+
+
 def _cmd_compact(args: argparse.Namespace) -> int:
     keep = _window_seconds(args.keep)
     dropped = compact(Path(args.history), time.time() - keep)
@@ -103,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="uptimekit",
         description="Synthetic uptime monitoring: probe targets, keep history,"
-                    " report availability and incidents.")
+                    " report availability and incidents, render a status page.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("check", help="probe every target once and record results")
@@ -123,6 +141,13 @@ def main(argv: list[str] | None = None) -> int:
                    help="exit 1 when an incident is still open")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=_cmd_report)
+
+    p = sub.add_parser("status-page", help="render a self-contained HTML status page")
+    p.add_argument("--history", default=DEFAULT_HISTORY)
+    p.add_argument("--config", help="JSON target list; without it, targets come from history")
+    p.add_argument("--window", default="24h")
+    p.add_argument("--out", default="status.html", help="output file")
+    p.set_defaults(func=_cmd_status_page)
 
     p = sub.add_parser("compact", help="drop history older than --keep")
     p.add_argument("--history", default=DEFAULT_HISTORY)

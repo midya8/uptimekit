@@ -3,9 +3,8 @@
 Synthetic uptime monitoring and availability reporting in pure Python -
 no dependencies, no database, no daemon required. Point it at your
 services, run `check` from cron or CI, and `report` tells you each
-target's availability, average latency and incident history. A companion
-status-page renderer (coming next) turns the same history into a
-self-contained HTML status page.
+target's availability, average latency and incident history. The same history renders into a self-contained
+HTML status page - no JS, no external CSS, servable from any static host.
 
 Built as a portfolio project: the monitoring end of the SRE toolkit
 family, where [sre-toolkit](https://github.com/midya8/sre-toolkit) covers
@@ -40,6 +39,7 @@ python -m uptimekit check --config examples/targets.json          # probe once, 
 python -m uptimekit check --config examples/targets.json --json   # machine-readable
 python -m uptimekit report --window 24h                           # availability roll-up
 python -m uptimekit report --incidents --threshold 2 --fail-open  # gate on open incidents
+python -m uptimekit status-page --out status.html             # self-contained HTML status page
 python -m uptimekit compact --keep 30d                            # retention
 ```
 
@@ -66,13 +66,22 @@ optional), `tcp` (needs `host`/`port`), `tls` (needs `host`/`port`;
 fails when the certificate is expired or the handshake fails).
 Unknown keys and missing fields are rejected with exit 2.
 
+## Status page
+
+`status-page` renders current state, uptime over the window, the latest
+check detail and a 30-check tick strip per target into one HTML file with
+inline CSS and no JavaScript. Serve it from any static host, commit it to
+GitHub Pages, or open it from disk. Regenerate it after each check run;
+`examples/status.html` is a rendered example. Targets come from
+`--config` when given, otherwise from the history itself.
+
 ## Tests
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-45 tests run fully offline: probe behavior is verified against loopback
+57 tests run fully offline: probe behavior is verified against loopback
 HTTP/TCP servers, TLS paths use injected certificates, and the CLI tests
 mock the probe engine so the suite never touches the network.
 
@@ -83,7 +92,8 @@ uptimekit/
   probes.py        # target specs, HTTP/TCP/TLS probes, config validation
   history.py       # append-only JSONL store, window reads, retention
   availability.py  # uptime roll-ups, incident detection, current state
-  __main__.py      # CLI: check / report / compact
+  statuspage.py    # self-contained HTML status page renderer
+  __main__.py      # CLI: check / report / status-page / compact
 tests/             # unittest suite, no network access
 examples/          # sample target config
 ```

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Service status</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+h1 { font-size: 1.4rem; }
+.banner { padding: .6rem 1rem; border-radius: 8px; font-weight: 600; }
+.banner.up { background: #dafbe1; color: #116329; }
+.banner.down { background: #ffebe9; color: #a40e26; }
+.target { border: 1px solid #8884; border-radius: 8px; padding: .8rem 1rem; margin: .8rem 0; }
+.head { display: flex; justify-content: space-between; align-items: baseline; }
+.state { font-weight: 600; text-transform: uppercase; font-size: .8rem; }
+.state.up { color: #1a7f37; } .state.down { color: #cf222e; } .state.unknown { color: #9a6700; }
+.ticks { display: flex; gap: 2px; margin: .5rem 0; }
+.tick { flex: 1; height: 14px; border-radius: 2px; background: #8884; }
+.tick.ok { background: #2da44e; } .tick.fail { background: #cf222e; }
+.meta { color: #888; font-size: .85rem; }
+footer { color: #888; font-size: .8rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<h1>Service status</h1>
+<div class="banner up">All systems operational</div>
+<div class="target">
+<div class="head"><strong>web</strong>
+<span class="state up">up</span></div>
+<div class="ticks"><div class="tick ok" title="2026-11-01 15:17:33: status 200"></div><div class="tick ok" title="2026-11-01 15:22:33: status 200"></div><div class="tick ok" title="2026-11-01 15:27:33: status 200"></div><div class="tick ok" title="2026-11-01 15:32:33: status 200"></div><div class="tick ok" title="2026-11-01 15:37:33: status 200"></div><div class="tick ok" title="2026-11-01 15:42:33: status 200"></div><div class="tick ok" title="2026-11-01 15:47:33: status 200"></div><div class="tick ok" title="2026-11-01 15:52:33: status 200"></div><div class="tick ok" title="2026-11-01 15:57:33: status 200"></div><div class="tick ok" title="2026-11-01 16:02:33: status 200"></div><div class="tick ok" title="2026-11-01 16:07:33: status 200"></div><div class="tick ok" title="2026-11-01 16:12:33: status 200"></div><div class="tick ok" title="2026-11-01 16:17:33: status 200"></div><div class="tick ok" title="2026-11-01 16:22:33: status 200"></div><div class="tick ok" title="2026-11-01 16:27:33: status 200"></div><div class="tick ok" title="2026-11-01 16:32:33: status 200"></div><div class="tick ok" title="2026-11-01 16:37:33: status 200"></div><div class="tick ok" title="2026-11-01 16:42:33: status 200"></div><div class="tick ok" title="2026-11-01 16:47:33: status 200"></div><div class="tick ok" title="2026-11-01 16:52:33: status 200"></div><div class="tick ok" title="2026-11-01 16:57:33: status 200"></div><div class="tick ok" title="2026-11-01 17:02:33: status 200"></div><div class="tick ok" title="2026-11-01 17:07:33: status 200"></div><div class="tick ok" title="2026-11-01 17:12:33: status 200"></div><div class="tick ok" title="2026-11-01 17:17:33: status 200"></div><div class="tick ok" title="2026-11-01 17:22:33: status 200"></div><div class="tick ok" title="2026-11-01 17:27:33: status 200"></div><div class="tick ok" title="2026-11-01 17:32:33: status 200"></div><div class="tick ok" title="2026-11-01 17:37:33: status 200"></div><div class="tick ok" title="2026-11-01 17:42:33: status 200"></div></div>
+<div class="meta">100.00% uptime over 30 checks (24h)<br>last check 2026-11-01 17:42:33: status 200</div>
+</div><div class="target">
+<div class="head"><strong>api</strong>
+<span class="state up">up</span></div>
+<div class="ticks"><div class="tick ok" title="2026-11-01 15:17:34: status 200"></div><div class="tick ok" title="2026-11-01 15:22:34: status 200"></div><div class="tick ok" title="2026-11-01 15:27:34: status 200"></div><div class="tick ok" title="2026-11-01 15:32:34: status 200"></div><div class="tick ok" title="2026-11-01 15:37:34: status 200"></div><div class="tick ok" title="2026-11-01 15:42:34: status 200"></div><div class="tick ok" title="2026-11-01 15:47:34: status 200"></div><div class="tick ok" title="2026-11-01 15:52:34: status 200"></div><div class="tick ok" title="2026-11-01 15:57:34: status 200"></div><div class="tick ok" title="2026-11-01 16:02:34: status 200"></div><div class="tick ok" title="2026-11-01 16:07:34: status 200"></div><div class="tick ok" title="2026-11-01 16:12:34: status 200"></div><div class="tick ok" title="2026-11-01 16:17:34: status 200"></div><div class="tick ok" title="2026-11-01 16:22:34: status 200"></div><div class="tick ok" title="2026-11-01 16:27:34: status 200"></div><div class="tick ok" title="2026-11-01 16:32:34: status 200"></div><div class="tick ok" title="2026-11-01 16:37:34: status 200"></div><div class="tick ok" title="2026-11-01 16:42:34: status 200"></div><div class="tick ok" title="2026-11-01 16:47:34: status 200"></div><div class="tick ok" title="2026-11-01 16:52:34: status 200"></div><div class="tick ok" title="2026-11-01 16:57:34: status 200"></div><div class="tick ok" title="2026-11-01 17:02:34: status 200"></div><div class="tick ok" title="2026-11-01 17:07:34: status 200"></div><div class="tick ok" title="2026-11-01 17:12:34: status 200"></div><div class="tick fail" title="2026-11-01 17:17:34: status 503"></div><div class="tick fail" title="2026-11-01 17:22:34: status 503"></div><div class="tick fail" title="2026-11-01 17:27:34: status 503"></div><div class="tick ok" title="2026-11-01 17:32:34: status 200"></div><div class="tick ok" title="2026-11-01 17:37:34: status 200"></div><div class="tick ok" title="2026-11-01 17:42:34: status 200"></div></div>
+<div class="meta">90.00% uptime over 30 checks (24h)<br>last check 2026-11-01 17:42:34: status 200</div>
+</div><div class="target">
+<div class="head"><strong>database</strong>
+<span class="state up">up</span></div>
+<div class="ticks"><div class="tick ok" title="2026-11-01 15:17:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 15:22:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 15:27:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 15:32:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 15:37:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 15:42:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 15:47:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 15:52:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 15:57:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 16:02:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 16:07:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 16:12:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 16:17:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 16:22:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 16:27:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 16:32:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 16:37:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 16:42:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 16:47:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 16:52:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 16:57:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 17:02:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 17:07:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 17:12:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 17:17:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 17:22:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 17:27:35: db:5432 accepted connection"></div><div class="tick fail" title="2026-11-01 17:32:35: connect failed"></div><div class="tick ok" title="2026-11-01 17:37:35: db:5432 accepted connection"></div><div class="tick ok" title="2026-11-01 17:42:35: db:5432 accepted connection"></div></div>
+<div class="meta">96.67% uptime over 30 checks (24h)<br>last check 2026-11-01 17:42:35: db:5432 accepted connection</div>
+</div>
+<footer>Generated by uptimekit at 2026-11-01 17:42:33 &middot;
+window: 24h &middot; refresh by re-running
+<code>uptimekit status-page</code></footer>
+</body>
+</html>
