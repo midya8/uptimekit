@@ -136,6 +136,41 @@ class TestReport(CliCase):
             main(["report", "--history", str(self.history), "--window", "fortnight"])
 
 
+class TestReportTrend(CliCase):
+    def test_report_shows_percentiles(self):
+        self._seed([True, True, False])
+        with mock.patch("uptimekit.__main__.time") as t:
+            t.time.return_value = 100.0
+            t.strftime = __import__("time").strftime
+            t.localtime = __import__("time").localtime
+            code, out = self.run_cli(["report", "--history", str(self.history)])
+        self.assertIn("p50 10 / p95 10", out)
+
+    def test_json_has_percentiles(self):
+        self._seed([True, True])
+        with mock.patch("uptimekit.__main__.time") as t:
+            t.time.return_value = 100.0
+            t.strftime = __import__("time").strftime
+            t.localtime = __import__("time").localtime
+            code, out = self.run_cli(["report", "--history", str(self.history),
+                                      "--json"])
+        data = json.loads(out)
+        self.assertEqual(data["targets"][0]["latency_p50_ms"], 10.0)
+        self.assertIn("latency_p95_ms", data["targets"][0])
+
+    def test_trend_strip_marks_states(self):
+        import time as real_time
+        now = real_time.time()
+        # one ok check today; nothing yesterday -> strip shows '.' for gap
+        self._seed([True], base=now - 3600)
+        code, out = self.run_cli(["report", "--history", str(self.history),
+                                  "--trend", "--window", "172800"])
+        self.assertIn("Daily trend (172800):", out)
+        strip = [l for l in out.splitlines() if "|" in l][0]
+        self.assertIn("#", strip)
+        self.assertIn(".", strip)  # yesterday had no checks
+
+
 class TestStatusPage(CliCase):
     def test_writes_page_from_config(self):
         import time

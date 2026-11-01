@@ -89,3 +89,55 @@ def current_state(entries: list[Entry], name: str) -> str:
     if not mine:
         return "unknown"
     return "up" if mine[-1].ok else "down"
+
+
+def percentile(values: list[float], pct: float) -> float:
+    """Nearest-rank percentile; 0.0 for empty input."""
+    if not values:
+        return 0.0
+    if not 0 < pct <= 100:
+        raise ValueError("pct must be in (0, 100]")
+    ordered = sorted(values)
+    import math
+    rank = max(1, math.ceil(pct / 100.0 * len(ordered)))
+    return ordered[rank - 1]
+
+
+def latency_percentiles(entries: list[Entry], name: str,
+                        pcts: tuple = (50, 95)) -> dict:
+    """Percentiles over successful checks only - a failed check has no
+    meaningful latency and would drag the numbers toward zero."""
+    latencies = [e.latency_ms for e in entries if e.name == name and e.ok]
+    return {p: percentile(latencies, p) for p in pcts}
+
+
+@dataclass(frozen=True)
+class TrendBucket:
+    """Availability for one time bucket (e.g. one day)."""
+
+    start: float
+    checks: int
+    failures: int
+    uptime_pct: float
+
+
+def trend(entries: list[Entry], name: str, bucket_seconds: float,
+          start: float, end: float) -> list[TrendBucket]:
+    """Availability per bucket between start and end, buckets aligned to
+    start. Empty buckets are reported with zero checks, not skipped, so a
+    monitoring gap is visible as a gap instead of averaged away."""
+    if bucket_seconds <= 0:
+        raise ValueError("bucket_seconds must be positive")
+    if end <= start:
+        raise ValueError("end must be after start")
+    mine = [e for e in entries if e.name == name]
+    buckets = []
+    t = start
+    while t < end:
+        in_bucket = [e for e in mine if t <= e.checked_at < t + bucket_seconds]
+        checks = len(in_bucket)
+        failures = sum(1 for e in in_bucket if not e.ok)
+        uptime = 100.0 * (checks - failures) / checks if checks else 0.0
+        buckets.append(TrendBucket(t, checks, failures, uptime))
+        t += bucket_seconds
+    return buckets

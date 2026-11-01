@@ -6,7 +6,8 @@ import sys
 import time
 from pathlib import Path
 
-from .availability import availability, current_state, fleet, incidents
+from .availability import (availability, current_state, fleet, incidents,
+                           latency_percentiles, trend)
 from .history import append, compact, read
 from .probes import load_targets, run_checks
 from .statuspage import render
@@ -65,6 +66,8 @@ def _cmd_report(args: argparse.Namespace) -> int:
                 {"name": a.name, "checks": a.checks, "failures": a.failures,
                  "uptime_pct": round(a.uptime_pct, 3),
                  "avg_latency_ms": round(a.avg_latency_ms, 1),
+                 "latency_p50_ms": round(latency_percentiles(entries, a.name)[50], 1),
+                 "latency_p95_ms": round(latency_percentiles(entries, a.name)[95], 1),
                  "state": current_state(entries, a.name)}
                 for a in rolls],
         }, indent=2))
@@ -74,9 +77,25 @@ def _cmd_report(args: argparse.Namespace) -> int:
         print("  no history in window")
     for a in rolls:
         state = current_state(entries, a.name)
-        latency = f", avg {a.avg_latency_ms:.0f} ms" if a.checks > a.failures else ""
+        if a.checks > a.failures:
+            pcts = latency_percentiles(entries, a.name)
+            latency = (f", avg {a.avg_latency_ms:.0f} ms"
+                       f" (p50 {pcts[50]:.0f} / p95 {pcts[95]:.0f})")
+        else:
+            latency = ""
         print(f"  {a.name:20s} {a.uptime_pct:6.2f}% over {a.checks} checks"
               f" ({a.failures} failed{latency}) - currently {state}")
+    if args.trend:
+        print(f"Daily trend ({args.window}):")
+        day = 86400.0
+        for a in rolls:
+            buckets = trend(entries, a.name, day, now - window, now)
+            line = "".join(
+                "#" if b.checks and b.uptime_pct == 100.0 else
+                "+" if b.checks and b.uptime_pct >= 99.0 else
+                "!" if b.checks else
+                "." for b in buckets)
+            print(f"  {a.name:20s} |{line}|  #=100% +=>=99% !=degraded .=no checks")
     if args.incidents:
         open_found = False
         print("Incidents:")
@@ -135,6 +154,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--window", default="24h",
                    help="1h, 24h, 7d, 30d, or a number of seconds")
     p.add_argument("--incidents", action="store_true", help="also list incidents")
+    p.add_argument("--trend", action="store_true",
+                   help="per-day availability strip per target")
     p.add_argument("--threshold", type=int, default=1,
                    help="consecutive failures before an incident opens")
     p.add_argument("--fail-open", action="store_true",
