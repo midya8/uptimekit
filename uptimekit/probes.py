@@ -34,6 +34,7 @@ class Target:
     timeout: float = DEFAULT_TIMEOUT
     min_days: float = 0.0  # tls: fail when the cert expires sooner than this
     max_latency_ms: float = 0.0  # http/tcp: fail when slower than this
+    slo: float = 0.0  # availability target % for report; 0 = no SLO
 
     def validate(self) -> None:
         if not self.name:
@@ -57,6 +58,8 @@ class Target:
             raise ValueError(f"{self.name}: max_latency_ms must be >= 0")
         if self.max_latency_ms and self.kind == "tls":
             raise ValueError(f"{self.name}: max_latency_ms does not apply to tls")
+        if not 0.0 <= self.slo <= 100.0:
+            raise ValueError(f"{self.name}: slo must be between 0 and 100")
 
 
 @dataclass(frozen=True)
@@ -183,7 +186,7 @@ def load_targets(data: object) -> list[Target]:
         if not isinstance(item, dict):
             raise ValueError(f"target {i} must be an object")
         known = {"name", "kind", "url", "host", "port", "expect_status",
-                 "keyword", "timeout", "min_days", "max_latency_ms"}
+                 "keyword", "timeout", "min_days", "max_latency_ms", "slo"}
         unknown = set(item) - known
         if unknown:
             raise ValueError(f"target {i}: unknown keys {sorted(unknown)}")
@@ -198,6 +201,7 @@ def load_targets(data: object) -> list[Target]:
             timeout=float(item.get("timeout", DEFAULT_TIMEOUT)),
             min_days=float(item.get("min_days", 0.0)),
             max_latency_ms=float(item.get("max_latency_ms", 0.0)),
+            slo=float(item.get("slo", 0.0)),
         )
         target.validate()
         targets.append(target)

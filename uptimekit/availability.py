@@ -103,6 +103,22 @@ def percentile(values: list[float], pct: float) -> float:
     return ordered[rank - 1]
 
 
+def error_budget_consumed(uptime_pct: float, slo: float) -> float:
+    """Fraction of the error budget consumed in the window.
+
+    0.0 at 100% uptime, 1.0 exactly at the SLO, above 1.0 when the SLO is
+    breached. An SLO of 100% allows no bad checks at all, so any failure
+    exhausts the budget immediately.
+    """
+    if not 0.0 < slo <= 100.0:
+        raise ValueError("slo must be in (0, 100]")
+    if not 0.0 <= uptime_pct <= 100.0:
+        raise ValueError("uptime_pct must be between 0 and 100")
+    if slo >= 100.0:
+        return 0.0 if uptime_pct >= 100.0 else float("inf")
+    return (100.0 - uptime_pct) / (100.0 - slo)
+
+
 def latency_percentiles(entries: list[Entry], name: str,
                         pcts: tuple = (50, 95)) -> dict:
     """Percentiles over successful checks only - a failed check has no

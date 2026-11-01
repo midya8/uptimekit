@@ -1,6 +1,6 @@
 [
   {"name": "example-site", "kind": "http", "url": "https://example.com/",
-   "expect_status": 200, "keyword": "Example"},
+   "expect_status": 200, "keyword": "Example", "slo": 99.9},
   {"name": "example-tls", "kind": "tls", "host": "example.com", "port": 443},
   {"name": "example-dns", "kind": "tcp", "host": "example.com", "port": 80}
 ]

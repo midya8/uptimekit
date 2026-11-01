@@ -1,6 +1,7 @@
 import unittest
 
 from uptimekit.availability import (availability, current_state, fleet,
+                           error_budget_consumed,
                                     incidents, latency_percentiles,
                                     percentile, trend)
 from uptimekit.history import Entry
@@ -144,3 +145,29 @@ class TestCurrentState(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestErrorBudget(unittest.TestCase):
+    def test_full_uptime_consumes_nothing(self):
+        self.assertEqual(error_budget_consumed(100.0, 99.9), 0.0)
+
+    def test_exactly_at_slo_is_fully_consumed(self):
+        self.assertAlmostEqual(error_budget_consumed(99.9, 99.9), 1.0)
+
+    def test_breach_is_over_one(self):
+        self.assertGreater(error_budget_consumed(99.0, 99.9), 1.0)
+
+    def test_partial_consumption(self):
+        self.assertAlmostEqual(error_budget_consumed(99.95, 99.9), 0.5)
+
+    def test_slo_100_allows_no_failures(self):
+        self.assertEqual(error_budget_consumed(100.0, 100.0), 0.0)
+        self.assertEqual(error_budget_consumed(99.999, 100.0), float("inf"))
+
+    def test_bad_inputs(self):
+        with self.assertRaises(ValueError):
+            error_budget_consumed(99.0, 0.0)
+        with self.assertRaises(ValueError):
+            error_budget_consumed(99.0, 100.1)
+        with self.assertRaises(ValueError):
+            error_budget_consumed(101.0, 99.9)

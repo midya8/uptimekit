@@ -247,3 +247,26 @@ class TestRunChecks(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSloConfig(unittest.TestCase):
+    def test_target_slo_range(self):
+        from uptimekit.probes import Target
+        Target(name="a", kind="tcp", host="h", port=1, slo=99.9).validate()
+        Target(name="a", kind="tcp", host="h", port=1, slo=100.0).validate()
+        with self.assertRaises(ValueError):
+            Target(name="a", kind="tcp", host="h", port=1, slo=100.1).validate()
+        with self.assertRaises(ValueError):
+            Target(name="a", kind="tcp", host="h", port=1, slo=-1).validate()
+
+    def test_load_targets_accepts_slo(self):
+        from uptimekit.probes import load_targets
+        targets = load_targets([{"name": "a", "kind": "tcp", "host": "h",
+                                 "port": 1, "slo": 99.5}])
+        self.assertEqual(targets[0].slo, 99.5)
+
+    def test_load_targets_default_no_slo(self):
+        from uptimekit.probes import load_targets
+        targets = load_targets([{"name": "a", "kind": "tcp", "host": "h",
+                                 "port": 1}])
+        self.assertEqual(targets[0].slo, 0.0)

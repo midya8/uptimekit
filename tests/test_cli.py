@@ -302,3 +302,75 @@ class TestCompact(CliCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSLO(CliCase):
+    def setUp(self):
+        super().setUp()
+        self.slo_config = self.dir / "slo.json"
+        self.slo_config.write_text(json.dumps([
+            {"name": "api", "kind": "http", "url": "http://x/", "slo": 75.0},
+            {"name": "db", "kind": "tcp", "host": "h", "port": 1},
+        ]))
+        self.mock_time = dict(
+            strftime=__import__("time").strftime,
+            localtime=__import__("time").localtime)
+
+    def _run_at_100(self, argv):
+        with mock.patch("uptimekit.__main__.time") as t:
+            t.time.return_value = 100.0
+            t.strftime = self.mock_time["strftime"]
+            t.localtime = self.mock_time["localtime"]
+            return self.run_cli(argv)
+
+    def test_slo_met_line(self):
+        self._seed([True, True, False, True])
+        code, out = self._run_at_100(["report", "--history", str(self.history),
+                                      "--config", str(self.slo_config)])
+        self.assertEqual(code, 0)
+        self.assertIn("SLO 75.00% met", out)
+        self.assertIn("100.0% of error budget consumed", out)
+        self.assertNotIn("BREACHED", out)
+
+    def test_slo_breach_and_fail_slo(self):
+        self._seed([True, False, False, True])
+        code, out = self._run_at_100(["report", "--history", str(self.history),
+                                      "--config", str(self.slo_config),
+                                      "--fail-slo"])
+        self.assertEqual(code, 1)
+        self.assertIn("SLO 75.00% BREACHED", out)
+        self.assertIn("error budget exhausted", out)
+
+    def test_no_fail_slo_means_exit_0_on_breach(self):
+        self._seed([True, False, False, True])
+        code, out = self._run_at_100(["report", "--history", str(self.history),
+                                      "--config", str(self.slo_config)])
+        self.assertEqual(code, 0)
+
+    def test_no_config_no_slo_lines(self):
+        self._seed([True, False])
+        code, out = self._run_at_100(["report", "--history", str(self.history)])
+        self.assertNotIn("SLO", out)
+
+    def test_json_carries_slo_fields(self):
+        self._seed([True, True, False, True])
+        from uptimekit.history import append
+        append(self.history, [Result("db", "tcp", True, 3.0, "d", 50.0,
+                                     0, "")])
+        code, out = self._run_at_100(["report", "--history", str(self.history),
+                                      "--config", str(self.slo_config),
+                                      "--json"])
+        data = json.loads(out)
+        api = next(t for t in data["targets"] if t["name"] == "api")
+        self.assertEqual(api["slo"], 75.0)
+        self.assertAlmostEqual(api["error_budget_consumed"], 1.0, places=3)
+        self.assertTrue(api["slo_met"])
+        db = next(t for t in data["targets"] if t["name"] == "db")
+        self.assertNotIn("slo", db)
+
+    def test_json_fail_slo_exit(self):
+        self._seed([False, False])
+        code, out = self._run_at_100(["report", "--history", str(self.history),
+                                      "--config", str(self.slo_config),
+                                      "--json", "--fail-slo"])
+        self.assertEqual(code, 1)

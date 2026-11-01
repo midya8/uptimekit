@@ -41,6 +41,10 @@ targets.json --check--> probe engine --append--> uptime-history.jsonl
   while any incident is open; `--max-open-minutes` is the gentler gate
   that fires only on sustained outages, so a self-healing 2-minute blip
   does not page anyone.
+- **SLOs** - give a target `"slo": 99.9` and `report --config` measures the
+  window against it: error budget consumed so far, and whether the SLO is
+  met or breached. `--fail-slo` exits 1 on a breach, so CI or cron can
+  gate on the number that matters instead of on single probes.
 
 ## Usage
 
@@ -52,6 +56,7 @@ python -m uptimekit report --window 7d --trend                    # per-day avai
 python -m uptimekit report --window 24h --compare                 # vs the previous 24h
 python -m uptimekit report --incidents --threshold 2 --fail-open  # gate on open incidents
 python -m uptimekit report --incidents --max-open-minutes 15      # gate on sustained outages only
+python -m uptimekit report --config examples/targets.json --fail-slo  # gate on error budgets
 python -m uptimekit status-page --out status.html             # self-contained HTML status page
 python -m uptimekit watch --config targets.json --interval 300  # probe forever (or --iterations N)
 python -m uptimekit compact --keep 30d                            # retention
@@ -98,7 +103,7 @@ GitHub Pages, or open it from disk. Regenerate it after each check run;
 python -m unittest discover -s tests -v
 ```
 
-83 tests run fully offline: probe behavior is verified against loopback
+98 tests run fully offline: probe behavior is verified against loopback
 HTTP/TCP servers, TLS paths use injected certificates, and the CLI tests
 mock the probe engine so the suite never touches the network.
 
