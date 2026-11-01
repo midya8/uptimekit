@@ -44,11 +44,13 @@ python -m uptimekit report --window 24h                           # availability
 python -m uptimekit report --window 7d --trend                    # per-day availability strip
 python -m uptimekit report --incidents --threshold 2 --fail-open  # gate on open incidents
 python -m uptimekit status-page --out status.html             # self-contained HTML status page
+python -m uptimekit watch --config targets.json --interval 300  # probe forever (or --iterations N)
 python -m uptimekit compact --keep 30d                            # retention
 ```
 
-`check` exits 1 when any target fails, so a cron line doubles as an
-alerting path:
+`watch` runs the probe loop itself for hosts without cron (Ctrl-C stops
+cleanly with a summary). `check` exits 1 when any target fails, so a cron
+line doubles as an alerting path:
 
 ```cron
 */5 * * * * cd /opt/uptime && python -m uptimekit check --config targets.json || echo "uptime check failed" | mail -s "uptime" oncall@example.com
@@ -67,7 +69,8 @@ alerting path:
 
 Kinds: `http` (needs `url`; `expect_status` defaults to 200, `keyword`
 optional), `tcp` (needs `host`/`port`), `tls` (needs `host`/`port`;
-fails when the certificate is expired or the handshake fails).
+fails when the certificate is expired, expires within `min_days`, or the
+handshake fails).
 Unknown keys and missing fields are rejected with exit 2.
 
 ## Status page
@@ -85,7 +88,7 @@ GitHub Pages, or open it from disk. Regenerate it after each check run;
 python -m unittest discover -s tests -v
 ```
 
-68 tests run fully offline: probe behavior is verified against loopback
+74 tests run fully offline: probe behavior is verified against loopback
 HTTP/TCP servers, TLS paths use injected certificates, and the CLI tests
 mock the probe engine so the suite never touches the network.
 
@@ -97,7 +100,7 @@ uptimekit/
   history.py       # append-only JSONL store, window reads, retention
   availability.py  # uptime roll-ups, incident detection, current state
   statuspage.py    # self-contained HTML status page renderer
-  __main__.py      # CLI: check / report / status-page / compact
+  __main__.py      # CLI: check / watch / report / status-page / compact
 tests/             # unittest suite, no network access
 examples/          # sample target config
 ```

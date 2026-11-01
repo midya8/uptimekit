@@ -125,6 +125,29 @@ class TestTlsProbe(unittest.TestCase):
         self.assertFalse(result.ok)
         self.assertIn("EXPIRED", result.detail)
 
+    def test_min_days_threshold_fails_before_expiry(self):
+        cert = {"notAfter": "Jan 10 00:00:00 2027 GMT"}
+        import ssl
+        now = ssl.cert_time_to_seconds(cert["notAfter"]) - 5 * 86400.0
+        target = Target("site", "tls", host="example.com", port=443, min_days=14)
+        with mock.patch("uptimekit.probes._fetch_cert", return_value=cert):
+            result = check_tls(target, now=now)
+        self.assertFalse(result.ok)
+        self.assertIn("threshold 14", result.detail)
+
+    def test_min_days_passes_when_far_from_expiry(self):
+        cert = {"notAfter": "Jan 10 00:00:00 2027 GMT"}
+        import ssl
+        now = ssl.cert_time_to_seconds(cert["notAfter"]) - 60 * 86400.0
+        target = Target("site", "tls", host="example.com", port=443, min_days=14)
+        with mock.patch("uptimekit.probes._fetch_cert", return_value=cert):
+            result = check_tls(target, now=now)
+        self.assertTrue(result.ok)
+
+    def test_min_days_only_for_tls(self):
+        with self.assertRaises(ValueError):
+            Target("api", "http", url="http://x", min_days=5).validate()
+
     def test_handshake_failure_fails_cleanly(self):
         with mock.patch("uptimekit.probes._fetch_cert",
                         side_effect=OSError("refused")):

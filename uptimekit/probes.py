@@ -32,6 +32,7 @@ class Target:
     expect_status: int = 200
     keyword: str = ""
     timeout: float = DEFAULT_TIMEOUT
+    min_days: float = 0.0  # tls: fail when the cert expires sooner than this
 
     def validate(self) -> None:
         if not self.name:
@@ -47,6 +48,10 @@ class Target:
                 raise ValueError(f"{self.name}: {self.kind} target needs a valid port")
         if self.timeout <= 0:
             raise ValueError(f"{self.name}: timeout must be positive")
+        if self.min_days < 0:
+            raise ValueError(f"{self.name}: min_days must be >= 0")
+        if self.min_days and self.kind != "tls":
+            raise ValueError(f"{self.name}: min_days only applies to tls targets")
 
 
 @dataclass(frozen=True)
@@ -134,10 +139,15 @@ def check_tls(target: Target, now: float) -> Result:
         return Result(target.name, target.kind, False, 0.0, "TLS handshake failed",
                       now, error=str(exc))
     days = cert_days_left(cert, now)
-    ok = days > 0
-    detail = f"certificate expires in {days:.1f} days" if ok else \
-        f"certificate EXPIRED {-days:.1f} days ago"
-    return Result(target.name, target.kind, ok, latency, detail, now)
+    if days <= 0:
+        return Result(target.name, target.kind, False, latency,
+                      f"certificate EXPIRED {-days:.1f} days ago", now)
+    if days < target.min_days:
+        return Result(target.name, target.kind, False, latency,
+                      f"certificate expires in {days:.1f} days"
+                      f" (threshold {target.min_days:g})", now)
+    return Result(target.name, target.kind, True, latency,
+                  f"certificate expires in {days:.1f} days", now)
 
 
 _CHECKS = {"http": check_http, "tcp": check_tcp, "tls": check_tls}
@@ -160,7 +170,7 @@ def load_targets(data: object) -> list[Target]:
         if not isinstance(item, dict):
             raise ValueError(f"target {i} must be an object")
         known = {"name", "kind", "url", "host", "port", "expect_status",
-                 "keyword", "timeout"}
+                 "keyword", "timeout", "min_days"}
         unknown = set(item) - known
         if unknown:
             raise ValueError(f"target {i}: unknown keys {sorted(unknown)}")
@@ -173,6 +183,7 @@ def load_targets(data: object) -> list[Target]:
             expect_status=int(item.get("expect_status", 200)),
             keyword=item.get("keyword", ""),
             timeout=float(item.get("timeout", DEFAULT_TIMEOUT)),
+            min_days=float(item.get("min_days", 0.0)),
         )
         target.validate()
         targets.append(target)

@@ -200,6 +200,32 @@ class TestStatusPage(CliCase):
         self.assertTrue(out.exists())
 
 
+class TestWatch(CliCase):
+    def test_watch_iterations_records_history(self):
+        with mock.patch("uptimekit.__main__.run_checks", fake_results({})):
+            code, out = self.run_cli(["watch", "--config", str(self.config),
+                                      "--history", str(self.history),
+                                      "--iterations", "2", "--interval", "0"])
+        self.assertEqual(code, 0)
+        self.assertIn("2 iterations, 0 failed checks", out)
+        lines = self.history.read_text().strip().split("\n")
+        self.assertEqual(len(lines), 4)  # 2 targets x 2 iterations
+
+    def test_watch_counts_failures(self):
+        with mock.patch("uptimekit.__main__.run_checks", fake_results({"db": False})):
+            code, out = self.run_cli(["watch", "--config", str(self.config),
+                                      "--history", str(self.history),
+                                      "--iterations", "1", "--interval", "0"])
+        self.assertIn("1 iteration, 1 failed check", out)
+
+    def test_watch_bad_config_exits_2(self):
+        self.config.write_text("{nope")
+        with redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as ctx:
+                main(["watch", "--config", str(self.config), "--iterations", "1"])
+        self.assertEqual(ctx.exception.code, 2)
+
+
 class TestCompact(CliCase):
     def test_compact_drops_old(self):
         self._seed([True, True], base=0.0)
