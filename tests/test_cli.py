@@ -171,6 +171,36 @@ class TestReportTrend(CliCase):
         self.assertIn(".", strip)  # yesterday had no checks
 
 
+class TestSustainedGate(CliCase):
+    def test_sustained_open_incident_exits_1(self):
+        # incident opened 30 minutes ago, still open
+        import time as real_time
+        now = real_time.time()
+        self._seed([False, False], base=now - 1800)
+        code, out = self.run_cli(["report", "--history", str(self.history),
+                                  "--incidents", "--max-open-minutes", "15"])
+        self.assertEqual(code, 1)
+        self.assertIn("sustained >= 15m", out)
+
+    def test_fresh_incident_below_threshold_exits_0(self):
+        import time as real_time
+        now = real_time.time()
+        self._seed([False], base=now - 60)
+        code, out = self.run_cli(["report", "--history", str(self.history),
+                                  "--incidents", "--max-open-minutes", "15"])
+        self.assertEqual(code, 0)
+        self.assertNotIn("sustained", out)
+
+    def test_closed_incident_shows_duration(self):
+        import time as real_time
+        now = real_time.time()
+        self._seed([False, True], base=now - 600)
+        code, out = self.run_cli(["report", "--history", str(self.history),
+                                  "--incidents"])
+        self.assertIn("after 0m", out)  # 5s apart -> 0m
+        self.assertNotIn("OPEN", out)
+
+
 class TestReportCompare(CliCase):
     def _seed_at(self, ok_seq, base):
         from uptimekit.history import append
