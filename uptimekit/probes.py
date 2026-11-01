@@ -33,6 +33,7 @@ class Target:
     keyword: str = ""
     timeout: float = DEFAULT_TIMEOUT
     min_days: float = 0.0  # tls: fail when the cert expires sooner than this
+    max_latency_ms: float = 0.0  # http/tcp: fail when slower than this
 
     def validate(self) -> None:
         if not self.name:
@@ -52,6 +53,10 @@ class Target:
             raise ValueError(f"{self.name}: min_days must be >= 0")
         if self.min_days and self.kind != "tls":
             raise ValueError(f"{self.name}: min_days only applies to tls targets")
+        if self.max_latency_ms < 0:
+            raise ValueError(f"{self.name}: max_latency_ms must be >= 0")
+        if self.max_latency_ms and self.kind == "tls":
+            raise ValueError(f"{self.name}: max_latency_ms does not apply to tls")
 
 
 @dataclass(frozen=True)
@@ -98,6 +103,10 @@ def check_http(target: Target, now: float) -> Result:
         return Result(target.name, target.kind, False, latency,
                       f"keyword {target.keyword!r} not found in body",
                       now, status_code=status)
+    if target.max_latency_ms and latency > target.max_latency_ms:
+        return Result(target.name, target.kind, False, latency,
+                      f"slow: {latency:.0f} ms over {target.max_latency_ms:g} ms",
+                      now, status_code=status)
     return Result(target.name, target.kind, True, latency, f"status {status}",
                   now, status_code=status)
 
@@ -114,6 +123,10 @@ def check_tcp(target: Target, now: float) -> Result:
     except OSError as exc:
         return Result(target.name, target.kind, False, 0.0, "connect failed",
                       now, error=str(exc))
+    if target.max_latency_ms and latency > target.max_latency_ms:
+        return Result(target.name, target.kind, False, latency,
+                      f"slow: {latency:.0f} ms over {target.max_latency_ms:g} ms",
+                      now)
     return Result(target.name, target.kind, True, latency,
                   f"{target.host}:{target.port} accepted connection", now)
 
@@ -170,7 +183,7 @@ def load_targets(data: object) -> list[Target]:
         if not isinstance(item, dict):
             raise ValueError(f"target {i} must be an object")
         known = {"name", "kind", "url", "host", "port", "expect_status",
-                 "keyword", "timeout", "min_days"}
+                 "keyword", "timeout", "min_days", "max_latency_ms"}
         unknown = set(item) - known
         if unknown:
             raise ValueError(f"target {i}: unknown keys {sorted(unknown)}")
@@ -184,6 +197,7 @@ def load_targets(data: object) -> list[Target]:
             keyword=item.get("keyword", ""),
             timeout=float(item.get("timeout", DEFAULT_TIMEOUT)),
             min_days=float(item.get("min_days", 0.0)),
+            max_latency_ms=float(item.get("max_latency_ms", 0.0)),
         )
         target.validate()
         targets.append(target)

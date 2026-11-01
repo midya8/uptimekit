@@ -88,6 +88,32 @@ class TestHttpProbe(ServerCase):
         self.assertTrue(result.error)
 
 
+class TestLatencyGuard(ServerCase):
+    def test_http_slow_fails(self):
+        target = Target("api", "http", url=self.url("/ok"), max_latency_ms=0.0001)
+        result = run_checks([target])[0]
+        self.assertFalse(result.ok)
+        self.assertIn("slow", result.detail)
+
+    def test_http_fast_passes(self):
+        target = Target("api", "http", url=self.url("/ok"),
+                        max_latency_ms=60000.0)
+        self.assertTrue(run_checks([target])[0].ok)
+
+    def test_tcp_slow_fails(self):
+        target = Target("lb", "tcp", host="127.0.0.1", port=self.port,
+                        max_latency_ms=0.0001)
+        result = run_checks([target])[0]
+        self.assertFalse(result.ok)
+        self.assertIn("slow", result.detail)
+
+    def test_latency_guard_rejected_on_tls_and_negative(self):
+        with self.assertRaises(ValueError):
+            Target("s", "tls", host="h", port=443, max_latency_ms=100).validate()
+        with self.assertRaises(ValueError):
+            Target("a", "http", url="http://x", max_latency_ms=-1).validate()
+
+
 class TestTcpProbe(ServerCase):
     def test_open_port_connects(self):
         target = Target("lb", "tcp", host="127.0.0.1", port=self.port)

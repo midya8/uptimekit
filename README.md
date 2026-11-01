@@ -29,7 +29,9 @@ targets.json --check--> probe engine --append--> uptime-history.jsonl
   the window, plus average latency of the successful ones and p50/p95
   percentiles (failures excluded - a failed check has no meaningful
   latency). `--trend` adds a per-day strip per target where monitoring
-  gaps show as gaps instead of being averaged away.
+  gaps show as gaps instead of being averaged away, and `--compare`
+  diffs the window against the immediately preceding one so a
+  regression reads as a regression, not just a number.
 - **Incidents** - a run of N consecutive failures opens an incident at the
   first failure; the next success closes it. `--threshold 2` is the flap
   guard: one bad probe is noise, two is a page. `--fail-open` exits 1
@@ -42,6 +44,7 @@ python -m uptimekit check --config examples/targets.json          # probe once, 
 python -m uptimekit check --config examples/targets.json --json   # machine-readable
 python -m uptimekit report --window 24h                           # availability roll-up with p50/p95 latency
 python -m uptimekit report --window 7d --trend                    # per-day availability strip
+python -m uptimekit report --window 24h --compare                 # vs the previous 24h
 python -m uptimekit report --incidents --threshold 2 --fail-open  # gate on open incidents
 python -m uptimekit status-page --out status.html             # self-contained HTML status page
 python -m uptimekit watch --config targets.json --interval 300  # probe forever (or --iterations N)
@@ -88,7 +91,7 @@ GitHub Pages, or open it from disk. Regenerate it after each check run;
 python -m unittest discover -s tests -v
 ```
 
-74 tests run fully offline: probe behavior is verified against loopback
+80 tests run fully offline: probe behavior is verified against loopback
 HTTP/TCP servers, TLS paths use injected certificates, and the CLI tests
 mock the probe engine so the suite never touches the network.
 

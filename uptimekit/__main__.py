@@ -85,6 +85,20 @@ def _cmd_report(args: argparse.Namespace) -> int:
             latency = ""
         print(f"  {a.name:20s} {a.uptime_pct:6.2f}% over {a.checks} checks"
               f" ({a.failures} failed{latency}) - currently {state}")
+    if args.compare:
+        prev = read(Path(args.history), since=now - 2 * window, until=now - window)
+        prev_rolls = {a.name: a for a in fleet(prev)}
+        print(f"Compare: {args.window} vs the previous {args.window}:")
+        for a in rolls:
+            before = prev_rolls.get(a.name)
+            if before is None or before.checks == 0:
+                print(f"  {a.name:20s} no previous-window data")
+                continue
+            delta = a.uptime_pct - before.uptime_pct
+            sign = "+" if delta >= 0 else ""
+            arrow = "improved" if delta > 0.005 else                     "regressed" if delta < -0.005 else "flat"
+            print(f"  {a.name:20s} {before.uptime_pct:6.2f}% -> {a.uptime_pct:6.2f}%"
+                  f" ({sign}{delta:.2f}, {arrow})")
     if args.trend:
         print(f"Daily trend ({args.window}):")
         day = 86400.0
@@ -178,6 +192,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--incidents", action="store_true", help="also list incidents")
     p.add_argument("--trend", action="store_true",
                    help="per-day availability strip per target")
+    p.add_argument("--compare", action="store_true",
+                   help="compare against the immediately preceding window")
     p.add_argument("--threshold", type=int, default=1,
                    help="consecutive failures before an incident opens")
     p.add_argument("--fail-open", action="store_true",
