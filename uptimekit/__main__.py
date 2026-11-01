@@ -6,8 +6,8 @@ import sys
 import time
 from pathlib import Path
 
-from .availability import (availability, current_state, fleet, incidents,
-                           latency_percentiles, trend)
+from .availability import (availability, current_state, error_budget_consumed,
+                           fleet, incidents, latency_percentiles, trend)
 from .history import append, compact, read
 from .probes import load_targets, run_checks
 from .statuspage import render
@@ -59,19 +59,29 @@ def _cmd_report(args: argparse.Namespace) -> int:
     window = _window_seconds(args.window)
     entries = read(Path(args.history), since=now - window)
     rolls = fleet(entries)
+    slos = {}
+    if args.config:
+        slos = {t.name: t.slo for t in _load_config(args.config) if t.slo}
+    breached = [a.name for a in rolls
+                if slos.get(a.name) and a.uptime_pct < slos[a.name]]
     if args.json:
         print(json.dumps({
             "window": args.window,
             "targets": [
-                {"name": a.name, "checks": a.checks, "failures": a.failures,
-                 "uptime_pct": round(a.uptime_pct, 3),
-                 "avg_latency_ms": round(a.avg_latency_ms, 1),
-                 "latency_p50_ms": round(latency_percentiles(entries, a.name)[50], 1),
-                 "latency_p95_ms": round(latency_percentiles(entries, a.name)[95], 1),
-                 "state": current_state(entries, a.name)}
+                dict({"name": a.name, "checks": a.checks, "failures": a.failures,
+                      "uptime_pct": round(a.uptime_pct, 3),
+                      "avg_latency_ms": round(a.avg_latency_ms, 1),
+                      "latency_p50_ms": round(latency_percentiles(entries, a.name)[50], 1),
+                      "latency_p95_ms": round(latency_percentiles(entries, a.name)[95], 1),
+                      "state": current_state(entries, a.name)},
+                     **({"slo": slos[a.name],
+                         "error_budget_consumed": round(
+                             error_budget_consumed(a.uptime_pct, slos[a.name]), 3),
+                         "slo_met": a.uptime_pct >= slos[a.name]}
+                        if slos.get(a.name) else {}))
                 for a in rolls],
         }, indent=2))
-        return 0
+        return 1 if (args.fail_slo and breached) else 0
     print(f"Availability over {args.window} (to {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(now))}):")
     if not rolls:
         print("  no history in window")
@@ -85,6 +95,14 @@ def _cmd_report(args: argparse.Namespace) -> int:
             latency = ""
         print(f"  {a.name:20s} {a.uptime_pct:6.2f}% over {a.checks} checks"
               f" ({a.failures} failed{latency}) - currently {state}")
+        if slos.get(a.name):
+            consumed = error_budget_consumed(a.uptime_pct, slos[a.name])
+            if a.uptime_pct >= slos[a.name]:
+                print(f"  {'':20s} SLO {slos[a.name]:.2f}% met - "
+                      f"{consumed * 100:.1f}% of error budget consumed")
+            else:
+                print(f"  {'':20s} SLO {slos[a.name]:.2f}% BREACHED - "
+                      f"error budget exhausted ({consumed * 100:.1f}% consumed)")
     if args.compare:
         prev = read(Path(args.history), since=now - 2 * window, until=now - window)
         prev_rolls = {a.name: a for a in fleet(prev)}
@@ -134,8 +152,9 @@ def _cmd_report(args: argparse.Namespace) -> int:
                       f" - {status}")
         if sustained_found:
             return 1
-        return 1 if open_found and args.fail_open else 0
-    return 0
+        if open_found and args.fail_open:
+            return 1
+    return 1 if (args.fail_slo and breached) else 0
 
 
 def _cmd_status_page(args: argparse.Namespace) -> int:
@@ -213,6 +232,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--max-open-minutes", type=float, default=0.0,
                    help="exit 1 when an incident stays open this long;"
                         " the sustained-outage gate")
+    p.add_argument("--config", help="JSON target list; enables per-target SLO"
+                                    " reporting for targets with an slo")
+    p.add_argument("--fail-slo", action="store_true",
+                   help="exit 1 when any target misses its SLO (needs --config)")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=_cmd_report)
 
