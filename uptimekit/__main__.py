@@ -129,6 +129,28 @@ def _cmd_status_page(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_watch(args: argparse.Namespace) -> int:
+    targets = _load_config(args.config)
+    history = Path(args.history)
+    iterations = 0
+    failures = 0
+    try:
+        while True:
+            results = run_checks(targets)
+            append(history, results)
+            iterations += 1
+            failures += sum(1 for r in results if not r.ok)
+            if args.iterations and iterations >= args.iterations:
+                break
+            time.sleep(args.interval)
+    except KeyboardInterrupt:
+        pass
+    print(f"watch stopped after {iterations} iteration"
+          f"{'s' if iterations != 1 else ''}, {failures} failed check"
+          f"{'s' if failures != 1 else ''} recorded in {history}")
+    return 0
+
+
 def _cmd_compact(args: argparse.Namespace) -> int:
     keep = _window_seconds(args.keep)
     dropped = compact(Path(args.history), time.time() - keep)
@@ -162,6 +184,15 @@ def main(argv: list[str] | None = None) -> int:
                    help="exit 1 when an incident is still open")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=_cmd_report)
+
+    p = sub.add_parser("watch", help="probe on an interval, forever or --iterations times")
+    p.add_argument("--config", required=True, help="JSON list of targets")
+    p.add_argument("--history", default=DEFAULT_HISTORY)
+    p.add_argument("--interval", type=float, default=300.0,
+                   help="seconds between iterations (default 300)")
+    p.add_argument("--iterations", type=int, default=0,
+                   help="stop after N iterations (default: run until interrupted)")
+    p.set_defaults(func=_cmd_watch)
 
     p = sub.add_parser("status-page", help="render a self-contained HTML status page")
     p.add_argument("--history", default=DEFAULT_HISTORY)
