@@ -20,8 +20,11 @@ targets.json --check--> probe engine --append--> uptime-history.jsonl
 ```
 
 - **Probes** - HTTP (status code, optional keyword in body, latency), TCP
-  connect, and TLS certificate expiry. Every probe returns a result; an
-  unreachable target is a failed check, never a crash.
+  connect, and TLS certificate expiry, with a `min_days` threshold so a
+  certificate nearing expiry fails the check before it lapses.
+  `max_latency_ms` turns slow into down: a 200 that takes 8 seconds is an
+  incident, not a success. Every probe returns a result; an unreachable
+  target is a failed check, never a crash.
 - **History** - append-only JSONL, one line per check. Cheap to tail,
   trivially backup-able, and `compact` enforces retention with an atomic
   rewrite.
@@ -35,7 +38,9 @@ targets.json --check--> probe engine --append--> uptime-history.jsonl
 - **Incidents** - a run of N consecutive failures opens an incident at the
   first failure; the next success closes it. `--threshold 2` is the flap
   guard: one bad probe is noise, two is a page. `--fail-open` exits 1
-  while any incident is open, so CI can gate on it.
+  while any incident is open; `--max-open-minutes` is the gentler gate
+  that fires only on sustained outages, so a self-healing 2-minute blip
+  does not page anyone.
 
 ## Usage
 
@@ -46,6 +51,7 @@ python -m uptimekit report --window 24h                           # availability
 python -m uptimekit report --window 7d --trend                    # per-day availability strip
 python -m uptimekit report --window 24h --compare                 # vs the previous 24h
 python -m uptimekit report --incidents --threshold 2 --fail-open  # gate on open incidents
+python -m uptimekit report --incidents --max-open-minutes 15      # gate on sustained outages only
 python -m uptimekit status-page --out status.html             # self-contained HTML status page
 python -m uptimekit watch --config targets.json --interval 300  # probe forever (or --iterations N)
 python -m uptimekit compact --keep 30d                            # retention
@@ -73,7 +79,8 @@ line doubles as an alerting path:
 Kinds: `http` (needs `url`; `expect_status` defaults to 200, `keyword`
 optional), `tcp` (needs `host`/`port`), `tls` (needs `host`/`port`;
 fails when the certificate is expired, expires within `min_days`, or the
-handshake fails).
+handshake fails). `max_latency_ms` (http/tcp, default 0 = off) fails a
+check that passes but is too slow.
 Unknown keys and missing fields are rejected with exit 2.
 
 ## Status page
@@ -91,7 +98,7 @@ GitHub Pages, or open it from disk. Regenerate it after each check run;
 python -m unittest discover -s tests -v
 ```
 
-80 tests run fully offline: probe behavior is verified against loopback
+83 tests run fully offline: probe behavior is verified against loopback
 HTTP/TCP servers, TLS paths use injected certificates, and the CLI tests
 mock the probe engine so the suite never touches the network.
 

@@ -112,16 +112,28 @@ def _cmd_report(args: argparse.Namespace) -> int:
             print(f"  {a.name:20s} |{line}|  #=100% +=>=99% !=degraded .=no checks")
     if args.incidents:
         open_found = False
+        sustained_found = False
         print("Incidents:")
         for a in rolls:
             for inc in incidents(entries, a.name, threshold=args.threshold):
-                status = "OPEN" if inc.open else \
-                    f"ended {time.strftime('%H:%M:%S', time.localtime(inc.ended_at))}"
                 if inc.open:
                     open_found = True
+                    open_min = (now - inc.started_at) / 60.0
+                    sustained = args.max_open_minutes and \
+                        open_min >= args.max_open_minutes
+                    sustained_found |= bool(sustained)
+                    status = f"OPEN {open_min:.0f}m"
+                    if sustained:
+                        status += f" (sustained >= {args.max_open_minutes:g}m)"
+                else:
+                    dur = (inc.ended_at - inc.started_at) / 60.0
+                    status = (f"ended {time.strftime('%H:%M:%S', time.localtime(inc.ended_at))}"
+                              f" after {dur:.0f}m")
                 print(f"  {inc.name:20s} from {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(inc.started_at))}"
                       f" ({inc.checks_failed} check{'s' if inc.checks_failed != 1 else ''})"
                       f" - {status}")
+        if sustained_found:
+            return 1
         return 1 if open_found and args.fail_open else 0
     return 0
 
@@ -198,6 +210,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="consecutive failures before an incident opens")
     p.add_argument("--fail-open", action="store_true",
                    help="exit 1 when an incident is still open")
+    p.add_argument("--max-open-minutes", type=float, default=0.0,
+                   help="exit 1 when an incident stays open this long;"
+                        " the sustained-outage gate")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=_cmd_report)
 
