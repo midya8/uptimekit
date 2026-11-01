@@ -1,7 +1,8 @@
 import unittest
 
 from uptimekit.availability import (availability, current_state, fleet,
-                                    incidents)
+                                    incidents, latency_percentiles,
+                                    percentile, trend)
 from uptimekit.history import Entry
 
 
@@ -80,6 +81,57 @@ class TestIncidents(unittest.TestCase):
     def test_ignores_other_targets(self):
         entries = [entry("db", False, 1), entry("api", True, 2)]
         self.assertEqual(incidents(entries, "api"), [])
+
+
+class TestPercentile(unittest.TestCase):
+    def test_nearest_rank(self):
+        self.assertEqual(percentile([10, 20, 30, 40], 50), 20)
+        self.assertEqual(percentile([10, 20, 30, 40], 95), 40)
+        self.assertEqual(percentile([10, 20, 30, 40], 100), 40)
+
+    def test_empty_and_single(self):
+        self.assertEqual(percentile([], 95), 0.0)
+        self.assertEqual(percentile([42], 50), 42)
+
+    def test_bad_pct_rejected(self):
+        for bad in (0, -5, 101):
+            with self.assertRaises(ValueError):
+                percentile([1], bad)
+
+    def test_latency_percentiles_skip_failures(self):
+        entries = [entry("api", True, 1, latency=100.0),
+                   entry("api", False, 2, latency=0.0),
+                   entry("api", True, 3, latency=300.0)]
+        pcts = latency_percentiles(entries, "api")
+        self.assertEqual(pcts[50], 100.0)
+        self.assertEqual(pcts[95], 300.0)
+
+
+class TestTrend(unittest.TestCase):
+    def test_buckets_with_gap_visible(self):
+        entries = [entry("api", True, 10), entry("api", False, 20),
+                   entry("api", True, 110)]
+        buckets = trend(entries, "api", bucket_seconds=100, start=0, end=200)
+        self.assertEqual(len(buckets), 2)
+        self.assertEqual((buckets[0].checks, buckets[0].failures), (2, 1))
+        self.assertAlmostEqual(buckets[0].uptime_pct, 50.0)
+        self.assertAlmostEqual(buckets[1].uptime_pct, 100.0)
+
+    def test_empty_bucket_reported_not_skipped(self):
+        entries = [entry("api", True, 5)]
+        buckets = trend(entries, "api", bucket_seconds=10, start=0, end=30)
+        self.assertEqual([b.checks for b in buckets], [1, 0, 0])
+
+    def test_ignores_other_targets(self):
+        entries = [entry("db", False, 5), entry("api", True, 5)]
+        buckets = trend(entries, "api", bucket_seconds=10, start=0, end=10)
+        self.assertEqual(buckets[0].failures, 0)
+
+    def test_bad_params_rejected(self):
+        with self.assertRaises(ValueError):
+            trend([], "api", bucket_seconds=0, start=0, end=10)
+        with self.assertRaises(ValueError):
+            trend([], "api", bucket_seconds=10, start=10, end=10)
 
 
 class TestCurrentState(unittest.TestCase):
