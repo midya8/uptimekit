@@ -171,6 +171,39 @@ class TestReportTrend(CliCase):
         self.assertIn(".", strip)  # yesterday had no checks
 
 
+class TestReportCompare(CliCase):
+    def _seed_at(self, ok_seq, base):
+        from uptimekit.history import append
+        results = [Result("api", "http", ok, 10.0, "d", base + i + 1,
+                          200 if ok else 503, "")
+                   for i, ok in enumerate(ok_seq)]
+        append(self.history, results)
+
+    def test_compare_shows_delta(self):
+        # previous window: half failing; current window: all ok
+        self._seed_at([False, False], base=0.0)
+        self._seed_at([True, True], base=100.0)
+        with mock.patch("uptimekit.__main__.time") as t:
+            t.time.return_value = 200.0
+            t.strftime = __import__("time").strftime
+            t.localtime = __import__("time").localtime
+            code, out = self.run_cli(["report", "--history", str(self.history),
+                                      "--window", "100", "--compare"])
+        self.assertEqual(code, 0)
+        self.assertIn("0.00% -> 100.00%", out)
+        self.assertIn("improved", out)
+
+    def test_compare_without_previous_data(self):
+        self._seed([True])
+        with mock.patch("uptimekit.__main__.time") as t:
+            t.time.return_value = 100.0
+            t.strftime = __import__("time").strftime
+            t.localtime = __import__("time").localtime
+            code, out = self.run_cli(["report", "--history", str(self.history),
+                                      "--window", "100", "--compare"])
+        self.assertIn("no previous-window data", out)
+
+
 class TestStatusPage(CliCase):
     def test_writes_page_from_config(self):
         import time
