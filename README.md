@@ -79,6 +79,6 @@ uptimekit/
   availability.py  # uptime roll-ups, incident detection, current state
   statuspage.py    # self-contained HTML status page renderer
   __main__.py      # CLI: check / watch / report / status-page / compact
-tests/             # unittest suite, no network access
+tests/             # unittest suite, loopback servers and mocked probes
 examples/          # sample target config
 ```
