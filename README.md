@@ -13,7 +13,7 @@ targets.json --check--> probe engine --append--> uptime-history.jsonl
                         availability, latency, incidents
 ```
 
-**Probes.** Three kinds: HTTP (status code, optional keyword in the body, latency), TCP connect, and TLS certificate expiry, with a `min_days` threshold so a certificate nearing expiry fails the check before it actually lapses. `max_latency_ms` turns slow into down - a 200 that takes 8 seconds is an incident, not a success. Connection failures are recorded as failed checks. Invalid configuration is rejected before probing.
+**Probes.** Three kinds: HTTP (status code, optional keyword in the body, latency), TCP connect, and TLS certificate expiry, with a `min_days` threshold so a certificate nearing expiry fails the check before it actually lapses. `max_latency_ms` marks a slower HTTP or TCP probe as a failed check, even when the HTTP status is 200. Connection failures are recorded as failed checks. Invalid configuration is rejected before probing.
 
 **History.** Append-only JSONL, one line per check. Cheap to tail, easy to back up, and `compact` enforces retention with an atomic rewrite.
 
@@ -32,7 +32,7 @@ python -m uptimekit report --window 24h                           # availability
 python -m uptimekit report --window 7d --trend                    # per-day availability strip
 python -m uptimekit report --window 24h --compare                 # vs the previous 24h
 python -m uptimekit report --incidents --threshold 2 --fail-open  # gate on open incidents
-python -m uptimekit report --incidents --max-open-minutes 15      # gate on sustained outages only
+python -m uptimekit report --incidents --max-open-minutes 15      # gate on the age of recorded open incidents
 python -m uptimekit report --config examples/targets.json --fail-slo  # gate on error budgets
 python -m uptimekit status-page --out status.html             # self-contained HTML status page
 python -m uptimekit watch --config targets.json --interval 300  # probe forever (or --iterations N)
