@@ -1,7 +1,7 @@
 """Availability math and incident detection over probe history.
 
-Availability is simple and honest: successful checks divided by total
-checks in the window. Incidents are state transitions - a target is down
+Availability is successful checks divided by total checks in the window,
+not duration-weighted uptime. Incidents are state transitions - a target is down
 after N consecutive failed checks and recovers on the first success.
 """
 
@@ -59,8 +59,8 @@ def incidents(entries: list[Entry], name: str, threshold: int = 1) -> list[Incid
     """Detect down periods for one target, oldest first.
 
     A run of at least `threshold` consecutive failures opens an incident at
-    the run's first failure; the next success closes it. threshold=2 is the
-    usual flap guard: one bad probe is noise, two is a page.
+    the run's first failure; the next success closes it. threshold=2 skips
+    isolated failures for incident classification; it does not send alerts.
     """
     if threshold < 1:
         raise ValueError("threshold must be >= 1")
